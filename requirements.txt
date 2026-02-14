@@ -1,0 +1,12 @@
+streamlit
+openai
+psycopg2-binary
+bcrypt
+python-dotenv
+Pillow
+requests
+PyPDF2
+pdf2image
+google-auth
+google-auth-oauthlib
+streamlit-google-auth
