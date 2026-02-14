@@ -5,11 +5,21 @@ Summarizes text using OpenAI API
 from openai import OpenAI
 import os
 from dotenv import load_dotenv
+import streamlit as st
 
 load_dotenv()
 
+# Get API key from environment or Streamlit secrets
+def get_api_key():
+    # Try Streamlit secrets first (for cloud deployment)
+    try:
+        return st.secrets["OPENAI_API_KEY"]
+    except:
+        # Fall back to environment variable (for local)
+        return os.getenv('OPENAI_API_KEY')
+
 # Initialize OpenAI client
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+client = OpenAI(api_key=get_api_key())
 
 def get_summary_instructions(length):
     """

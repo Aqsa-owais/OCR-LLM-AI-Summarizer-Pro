@@ -7,8 +7,26 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
 from dotenv import load_dotenv
+import streamlit as st
 
 load_dotenv()
+
+def get_email_config():
+    """Get email configuration from Streamlit secrets or environment"""
+    try:
+        return {
+            'smtp_server': st.secrets.get("SMTP_SERVER", "smtp.gmail.com"),
+            'smtp_port': int(st.secrets.get("SMTP_PORT", "587")),
+            'sender_email': st.secrets.get("SENDER_EMAIL", ""),
+            'sender_password': st.secrets.get("SENDER_PASSWORD", "")
+        }
+    except:
+        return {
+            'smtp_server': os.getenv('SMTP_SERVER', 'smtp.gmail.com'),
+            'smtp_port': int(os.getenv('SMTP_PORT', '587')),
+            'sender_email': os.getenv('SENDER_EMAIL', ''),
+            'sender_password': os.getenv('SENDER_PASSWORD', '')
+        }
 
 def send_email(to_email, subject, body):
     """
@@ -23,19 +41,15 @@ def send_email(to_email, subject, body):
         bool: Success status
     """
     try:
-        # Email configuration (using Gmail as example)
-        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-        smtp_port = int(os.getenv('SMTP_PORT', '587'))
-        sender_email = os.getenv('SENDER_EMAIL', '')
-        sender_password = os.getenv('SENDER_PASSWORD', '')
+        config = get_email_config()
         
-        if not sender_email or not sender_password:
+        if not config['sender_email'] or not config['sender_password']:
             print("Email credentials not configured")
             return False
         
         # Create message
         message = MIMEMultipart()
-        message['From'] = sender_email
+        message['From'] = config['sender_email']
         message['To'] = to_email
         message['Subject'] = subject
         
@@ -43,9 +57,9 @@ def send_email(to_email, subject, body):
         message.attach(MIMEText(body, 'html'))
         
         # Send email
-        with smtplib.SMTP(smtp_server, smtp_port) as server:
+        with smtplib.SMTP(config['smtp_server'], config['smtp_port']) as server:
             server.starttls()
-            server.login(sender_email, sender_password)
+            server.login(config['sender_email'], config['sender_password'])
             server.send_message(message)
         
         return True

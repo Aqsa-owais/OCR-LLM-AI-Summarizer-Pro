@@ -6,8 +6,16 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import os
 from dotenv import load_dotenv
+import streamlit as st
 
 load_dotenv()
+
+def get_database_url():
+    """Get database URL from Streamlit secrets or environment"""
+    try:
+        return st.secrets["DATABASE_URL"]
+    except:
+        return os.getenv('DATABASE_URL')
 
 def get_db_connection():
     """
@@ -15,7 +23,7 @@ def get_db_connection():
     """
     try:
         conn = psycopg2.connect(
-            os.getenv('DATABASE_URL'),
+            get_database_url(),
             cursor_factory=RealDictCursor
         )
         return conn
