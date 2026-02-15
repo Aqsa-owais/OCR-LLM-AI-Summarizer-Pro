@@ -73,11 +73,11 @@ def analyze_script(code_text, analysis_type="Full Analysis"):
                 },
                 {
                     "role": "user",
-                    "content": f"Analyze this code:\n\n{code_text}"
+                    "content": f"Analyze this code completely and thoroughly:\n\n{code_text}"
                 }
             ],
-            temperature=0.7,
-            max_tokens=1000
+            temperature=0.5,
+            max_tokens=1500  # Increased for complete analysis
         )
         
         # Extract analysis and token usage

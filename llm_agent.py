@@ -26,9 +26,9 @@ def get_summary_instructions(length):
     Get summary instructions based on length preference
     """
     instructions = {
-        "Short": "Provide a brief 2-3 sentence summary of the key points.",
-        "Medium": "Provide a comprehensive summary in 1-2 paragraphs covering main ideas.",
-        "Detailed": "Provide a detailed summary with all important points, organized in clear sections."
+        "Short": "Provide a brief 2-3 sentence summary of the key points only.",
+        "Medium": "Provide a comprehensive summary in 1-2 paragraphs covering main ideas and important details.",
+        "Detailed": "Provide a complete and detailed summary with ALL information from the text. Include every item, number, date, name, and detail. Don't skip anything. Organize in clear sections."
     }
     return instructions.get(length, instructions["Medium"])
 
@@ -48,7 +48,7 @@ def summarize_text(text, summary_length="Medium", output_language="English"):
         # Get summary instructions
         length_instruction = get_summary_instructions(summary_length)
         
-        # Create chat completion
+        # Create chat completion with higher token limit for complete analysis
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
@@ -57,15 +57,20 @@ def summarize_text(text, summary_length="Medium", output_language="English"):
                     "content": f"""You are an expert AI summarizer. Your task is to analyze 
                     and summarize text extracted from images using OCR. {length_instruction}
                     Focus on clarity, accuracy, and key information.
-                    IMPORTANT: Provide the summary in {output_language} language."""
+                    IMPORTANT: 
+                    - Provide the summary in {output_language} language.
+                    - Include ALL important information from the text.
+                    - Don't skip any details, items, or numbers.
+                    - For receipts/invoices: include all items, prices, totals, dates, and store info.
+                    - Organize information clearly and completely."""
                 },
                 {
                     "role": "user",
-                    "content": f"Please summarize the following text in {output_language}:\n\n{text}"
+                    "content": f"Please summarize the following text in {output_language}. Make sure to include ALL details:\n\n{text}"
                 }
             ],
-            temperature=0.6,
-            max_tokens=500
+            temperature=0.3,  # Lower temperature for more accurate extraction
+            max_tokens=800  # Increased token limit for complete summaries
         )
         
         # Extract summary and token usage

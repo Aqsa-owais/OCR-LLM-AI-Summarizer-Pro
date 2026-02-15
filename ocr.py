@@ -70,6 +70,8 @@ def extract_text_from_image(uploaded_file, language='Auto Detect'):
             'detectOrientation': True,
             'scale': True,
             'OCREngine': 2,  # Engine 2 is more accurate
+            'isTable': True,  # Better for receipts and structured text
+            'detectCheckbox': False,
         }
         
         # Prepare files
