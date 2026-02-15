@@ -12,6 +12,7 @@ A production-ready web application with advanced features: OCR, AI summarization
 - **Multi-language OCR**: Support for 25+ languages
 - **AI Summarization**: Generate summaries using OpenAI GPT-3.5
 - **Multi-language Summary**: Get summaries in 12+ languages
+- **💻 Script Analyzer**: Extract code from images and analyze with AI (bug detection, code review, explanations)
 
 ### Advanced Features
 - **📊 Analytics Dashboard**: View statistics, token usage, processing time
@@ -116,15 +117,20 @@ The app will open in your browser at `http://localhost:8501`
 ```
 ocr-llm-project/
 │
-├── app.py              # Main Streamlit application
-├── auth.py             # Authentication logic
-├── database.py         # Database connection and operations
-├── ocr.py              # OCR text extraction
-├── llm_agent.py        # OpenAI LLM agent
-├── requirements.txt    # Python dependencies
-├── .env                # Environment variables (not in git)
-├── .env.example        # Example environment file
-└── README.md           # Documentation
+├── app.py                    # Main Streamlit application
+├── auth.py                   # Authentication logic
+├── database.py               # Database connection and operations
+├── ocr.py                    # OCR text extraction
+├── llm_agent.py              # OpenAI LLM agent
+├── script_analyzer.py        # Code analysis module
+├── pdf_ocr.py                # PDF text extraction
+├── email_notifications.py    # Email notification system
+├── google_oauth.py           # Google Sign-In integration
+├── google_auth.py            # Google authentication helper
+├── requirements.txt          # Python dependencies
+├── .env                      # Environment variables (not in git)
+├── .env.example              # Example environment file
+└── README.md                 # Documentation
 ```
 
 ## 🔐 Security Features
@@ -168,6 +174,18 @@ ocr-llm-project/
 - Process all simultaneously
 - Download combined results
 - Automatic history saving
+
+### Script Analyzer
+- Upload images of code/scripts
+- Automatic programming language detection
+- Four analysis types:
+  - **Full Analysis**: Complete code review with best practices
+  - **Bug Detection**: Identify syntax, logic, and runtime errors
+  - **Code Review**: Quality, readability, and maintainability assessment
+  - **Explanation**: Step-by-step code explanation
+- Multi-language output (English, Urdu)
+- Download extracted code and analysis
+- Syntax highlighting for code display
 
 ## 🌍 Supported Languages
 

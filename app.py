@@ -6,6 +6,7 @@ import streamlit as st
 from auth import signup_user, login_user, logout_user
 from ocr import extract_text_from_image
 from llm_agent import summarize_text
+from script_analyzer import analyze_script, detect_language
 from pdf_ocr import extract_text_from_pdf
 from database import (create_users_table, create_ocr_history_table, save_ocr_result, 
                      get_user_history, search_history, get_user_statistics, delete_history_item)
@@ -47,7 +48,7 @@ def main():
             page = st.radio("Go to", ["Login", "Signup"])
         else:
             st.success(f"👤 {st.session_state.username}")
-            page = st.radio("Go to", ["Dashboard", "Analytics", "History", "Batch Process"])
+            page = st.radio("Go to", ["Dashboard", "Script Analyzer", "Analytics", "History", "Batch Process"])
             
             if st.button("🚪 Logout"):
                 logout_user()
@@ -61,6 +62,11 @@ def main():
     elif page == "Dashboard":
         if st.session_state.logged_in:
             show_dashboard()
+        else:
+            st.warning("Please login")
+    elif page == "Script Analyzer":
+        if st.session_state.logged_in:
+            show_script_analyzer()
         else:
             st.warning("Please login")
     elif page == "Analytics":
@@ -179,6 +185,119 @@ def show_login_page():
                     st.error(result['message'])
             else:
                 st.error("Please fill in all fields")
+
+def show_script_analyzer():
+    st.header("💻 Script Analyzer")
+    st.info("📸 Upload an image of code/script to analyze it with AI")
+    
+    # Analysis type selector
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        analysis_type = st.selectbox(
+            "🔍 Analysis Type",
+            ["Full Analysis", "Bug Detection", "Code Review", "Explanation"]
+        )
+    
+    with col2:
+        output_language = st.selectbox(
+            "🌍 Output Language",
+            ["English", "Urdu"]
+        )
+    
+    # File upload tabs
+    tab1, tab2 = st.tabs(["📤 Upload Image", "📸 Take Photo"])
+    
+    uploaded_file = None
+    
+    with tab1:
+        uploaded_file = st.file_uploader("Upload code image", type=['jpg', 'jpeg', 'png'], key="code_img")
+    
+    with tab2:
+        camera_photo = st.camera_input("Take photo of code", key="code_cam")
+        if camera_photo:
+            uploaded_file = camera_photo
+    
+    if uploaded_file:
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.subheader("📷 Code Image")
+            uploaded_file.seek(0)
+            st.image(uploaded_file, use_container_width=True)
+        
+        with col2:
+            if st.button("🚀 Analyze Code", type="primary", use_container_width=True):
+                start_time = time.time()
+                
+                with st.spinner("Extracting code from image..."):
+                    uploaded_file.seek(0)
+                    extracted_code = extract_text_from_image(uploaded_file, "Auto Detect")
+                    
+                    if extracted_code and not extracted_code.startswith("ERROR:"):
+                        st.success("✅ Code extracted!")
+                        
+                        # Display extracted code
+                        with st.expander("📄 Extracted Code", expanded=False):
+                            st.code(extracted_code, language="python")
+                        
+                        # Detect language
+                        with st.spinner("Detecting programming language..."):
+                            detected_lang = detect_language(extracted_code)
+                            st.info(f"🔍 Detected Language: **{detected_lang}**")
+                        
+                        # Analyze code
+                        with st.spinner(f"Analyzing code ({analysis_type})..."):
+                            # If output language is not English, add translation instruction
+                            if output_language != "English":
+                                analysis_instruction = f"{analysis_type} (Provide analysis in {output_language})"
+                            else:
+                                analysis_instruction = analysis_type
+                            
+                            analysis_result = analyze_script(extracted_code, analysis_instruction)
+                            
+                            if analysis_result['success']:
+                                processing_time = time.time() - start_time
+                                
+                                st.success(f"✅ Analysis complete in {processing_time:.2f}s!")
+                                
+                                # Display analysis
+                                with st.expander("🤖 AI Analysis", expanded=True):
+                                    st.markdown(analysis_result['analysis'])
+                                
+                                # Metrics
+                                col_a, col_b, col_c = st.columns(3)
+                                with col_a:
+                                    st.metric("Language", detected_lang)
+                                with col_b:
+                                    st.metric("Tokens", analysis_result['tokens'])
+                                with col_c:
+                                    st.metric("Time", f"{processing_time:.2f}s")
+                                
+                                # Download buttons
+                                col_d, col_e = st.columns(2)
+                                
+                                with col_d:
+                                    st.download_button(
+                                        "📥 Download Code",
+                                        extracted_code,
+                                        file_name="extracted_code.txt",
+                                        mime="text/plain",
+                                        use_container_width=True
+                                    )
+                                
+                                with col_e:
+                                    st.download_button(
+                                        "📥 Download Analysis",
+                                        analysis_result['analysis'],
+                                        file_name="code_analysis.txt",
+                                        mime="text/plain",
+                                        use_container_width=True
+                                    )
+                            else:
+                                st.error(f"Error: {analysis_result.get('message')}")
+                    else:
+                        st.error("No code found in image. Please try another image.")
 
 def show_signup_page():
     st.header("📝 Create Account")
