@@ -64,7 +64,7 @@ def main():
             show_dashboard()
         else:
             st.warning("Please login")
-    elif page == "Script Analyzer":
+    elif page == "Receipt Analyzer":
         if st.session_state.logged_in:
             show_script_analyzer()
         else:
@@ -187,8 +187,8 @@ def show_login_page():
                 st.error("Please fill in all fields")
 
 def show_script_analyzer():
-    st.header("💻 Script Analyzer")
-    st.info("📸 Upload an image of code/script to analyze it with AI")
+    st.header("🧾 Receipt Analyzer")
+    st.info("📸 Upload receipt/invoice image to extract and analyze all details")
     
     # Analysis type selector
     col1, col2 = st.columns(2)
