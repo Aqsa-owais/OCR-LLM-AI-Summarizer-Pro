@@ -48,7 +48,7 @@ def main():
             page = st.radio("Go to", ["Login", "Signup"])
         else:
             st.success(f"👤 {st.session_state.username}")
-            page = st.radio("Go to", ["Dashboard", "Script Analyzer", "Analytics", "History", "Batch Process"])
+            page = st.radio("Go to", ["Dashboard", "Receipt Analyzer", "Analytics", "History", "Batch Process"])
             
             if st.button("🚪 Logout"):
                 logout_user()

@@ -19,7 +19,7 @@ client = OpenAI(api_key=get_api_key())
 
 def analyze_script(code_text, analysis_type="Full Analysis"):
     """
-    Analyze code/script using OpenAI
+    Analyze code/Receipt using OpenAI
     
     Args:
         code_text (str): Extracted code from image
