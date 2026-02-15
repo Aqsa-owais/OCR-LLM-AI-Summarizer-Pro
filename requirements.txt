@@ -10,3 +10,4 @@ pdf2image
 google-auth
 google-auth-oauthlib
 streamlit-google-auth
+pandas
