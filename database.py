@@ -1,27 +1,47 @@
 """
-Database Connection and Operations
-Handles Neon PostgreSQL connection
+Database Module - PostgreSQL Operations
+Handles all database connections and operations
+Uses Neon PostgreSQL (cloud database)
 """
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import psycopg2  # PostgreSQL adapter for Python
+from psycopg2.extras import RealDictCursor  # Returns results as dictionaries
 import os
 from dotenv import load_dotenv
 import streamlit as st
 
+# Load environment variables from .env file
 load_dotenv()
 
 def get_database_url():
-    """Get database URL from Streamlit secrets or environment"""
+    """
+    Get database connection URL
+    Works on both local and Streamlit Cloud
+    
+    Returns:
+        str: Database connection URL
+    """
     try:
+        # Try Streamlit secrets first (for cloud)
         return st.secrets["DATABASE_URL"]
     except:
+        # Fall back to .env file (for local)
         return os.getenv('DATABASE_URL')
 
 def get_db_connection():
     """
-    Create and return a database connection
+    Create connection to PostgreSQL database
+    
+    How it works:
+    1. Gets database URL
+    2. Connects to Neon PostgreSQL
+    3. Returns connection object
+    
+    Returns:
+        connection: Database connection OR None if failed
     """
     try:
+        # Connect to database
+        # RealDictCursor makes results come back as dictionaries
         conn = psycopg2.connect(
             get_database_url(),
             cursor_factory=RealDictCursor
@@ -33,12 +53,24 @@ def get_db_connection():
 
 def create_users_table():
     """
-    Create users table if it doesn't exist
+    Create users table in database (if not exists)
+    
+    Table structure:
+    - id: Unique user ID (auto-increment)
+    - username: User's name
+    - email: User's email (must be unique)
+    - password_hash: Encrypted password
+    - role: user or admin
+    - created_at: When account was created
+    
+    Returns:
+        bool: True if successful, False if failed
     """
     conn = get_db_connection()
     if conn:
         try:
             cursor = conn.cursor()
+            # SQL command to create table
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS users (
                     id SERIAL PRIMARY KEY,
@@ -49,7 +81,7 @@ def create_users_table():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
-            conn.commit()
+            conn.commit()  # Save changes
             cursor.close()
             conn.close()
             return True
@@ -60,22 +92,33 @@ def create_users_table():
 
 def insert_user(username, email, password_hash):
     """
-    Insert a new user into the database
-    Uses parameterized queries to prevent SQL injection
+    Add new user to database
+    
+    Security: Uses parameterized queries to prevent SQL injection
+    
+    Args:
+        username (str): User's name
+        email (str): User's email
+        password_hash (str): Encrypted password
+    
+    Returns:
+        bool: True if user added, False if email already exists
     """
     conn = get_db_connection()
     if conn:
         try:
             cursor = conn.cursor()
+            # %s are placeholders - prevents SQL injection
             cursor.execute(
                 "INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s)",
                 (username, email, password_hash)
             )
-            conn.commit()
+            conn.commit()  # Save to database
             cursor.close()
             conn.close()
             return True
         except psycopg2.IntegrityError:
+            # Email already exists
             return False
         except Exception as e:
             print(f"Error inserting user: {e}")
@@ -84,7 +127,13 @@ def insert_user(username, email, password_hash):
 
 def get_user_by_email(email):
     """
-    Retrieve user by email
+    Find user by email address
+    
+    Args:
+        email (str): Email to search for
+    
+    Returns:
+        dict: User data OR None if not found
     """
     conn = get_db_connection()
     if conn:
@@ -94,7 +143,7 @@ def get_user_by_email(email):
                 "SELECT * FROM users WHERE email = %s",
                 (email,)
             )
-            user = cursor.fetchone()
+            user = cursor.fetchone()  # Get one result
             cursor.close()
             conn.close()
             return user
@@ -105,7 +154,13 @@ def get_user_by_email(email):
 
 def get_user_by_id(user_id):
     """
-    Retrieve user by ID
+    Find user by ID number
+    
+    Args:
+        user_id (int): User's ID
+    
+    Returns:
+        dict: User data OR None if not found
     """
     conn = get_db_connection()
     if conn:
@@ -126,155 +181,22 @@ def get_user_by_id(user_id):
 
 def create_ocr_history_table():
     """
-    Create OCR history table if it doesn't exist
-    """
-    conn = get_db_connection()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS ocr_history (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER REFERENCES users(id),
-                    image_name VARCHAR(255),
-                    extracted_text TEXT,
-                    summary TEXT,
-                    summary_length VARCHAR(50),
-                    language VARCHAR(50),
-                    tokens_used INTEGER,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            conn.commit()
-            cursor.close()
-            conn.close()
-            return True
-        except Exception as e:
-            print(f"Error creating ocr_history table: {e}")
-            return False
-    return False
-
-def save_ocr_result(user_id, image_name, extracted_text, summary, summary_length, language, tokens_used):
-    """
-    Save OCR result to history
-    """
-    conn = get_db_connection()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                """INSERT INTO ocr_history 
-                (user_id, image_name, extracted_text, summary, summary_length, language, tokens_used) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-                (user_id, image_name, extracted_text, summary, summary_length, language, tokens_used)
-            )
-            conn.commit()
-            cursor.close()
-            conn.close()
-            return True
-        except Exception as e:
-            print(f"Error saving OCR result: {e}")
-            return False
-    return False
-
-def get_user_history(user_id, limit=50):
-    """
-    Get user's OCR history
-    """
-    conn = get_db_connection()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                """SELECT id, image_name, extracted_text, summary, summary_length, 
-                language, tokens_used, created_at 
-                FROM ocr_history WHERE user_id = %s 
-                ORDER BY created_at DESC LIMIT %s""",
-                (user_id, limit)
-            )
-            history = cursor.fetchall()
-            cursor.close()
-            conn.close()
-            return history
-        except Exception as e:
-            print(f"Error fetching history: {e}")
-            return []
-    return []
-
-def get_user_stats(user_id):
-    """
-    Get user statistics
-    """
-    conn = get_db_connection()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                """SELECT 
-                COUNT(*) as total_ocr,
-                SUM(tokens_used) as total_tokens,
-                MAX(created_at) as last_activity
-                FROM ocr_history WHERE user_id = %s""",
-                (user_id,)
-            )
-            stats = cursor.fetchone()
-            cursor.close()
-            conn.close()
-            return stats
-        except Exception as e:
-            print(f"Error fetching stats: {e}")
-            return None
-    return None
-
-def delete_history_item(history_id, user_id):
-    """
-    Delete a history item
-    """
-    conn = get_db_connection()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "DELETE FROM ocr_history WHERE id = %s AND user_id = %s",
-                (history_id, user_id)
-            )
-            conn.commit()
-            cursor.close()
-            conn.close()
-            return True
-        except Exception as e:
-            print(f"Error deleting history: {e}")
-            return False
-    return False
-
-def search_history(user_id, search_term):
-    """
-    Search in user's history
-    """
-    conn = get_db_connection()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                """SELECT id, image_name, extracted_text, summary, summary_length, 
-                language, tokens_used, created_at 
-                FROM ocr_history WHERE user_id = %s 
-                AND (extracted_text ILIKE %s OR summary ILIKE %s)
-                ORDER BY created_at DESC LIMIT 50""",
-                (user_id, f'%{search_term}%', f'%{search_term}%')
-            )
-            results = cursor.fetchall()
-            cursor.close()
-            conn.close()
-            return results
-        except Exception as e:
-            print(f"Error searching history: {e}")
-            return []
-    return []
-
-def create_ocr_history_table():
-    """
-    Create OCR history table for storing results
+    Create table to store OCR processing history
+    
+    Table structure:
+    - id: Unique record ID
+    - user_id: Which user processed this
+    - filename: Name of uploaded file
+    - extracted_text: Text extracted from image
+    - summary: AI-generated summary
+    - summary_length: Short/Medium/Detailed
+    - language: Output language
+    - tokens_used: OpenAI tokens used
+    - processing_time: How long it took
+    - created_at: When it was processed
+    
+    Returns:
+        bool: True if successful
     """
     conn = get_db_connection()
     if conn:
@@ -305,7 +227,20 @@ def create_ocr_history_table():
 
 def save_ocr_result(user_id, filename, extracted_text, summary, summary_length, language, tokens_used, processing_time):
     """
-    Save OCR result to database
+    Save OCR processing result to history
+    
+    Args:
+        user_id (int): User who processed this
+        filename (str): Name of file
+        extracted_text (str): Text from OCR
+        summary (str): AI summary
+        summary_length (str): Short/Medium/Detailed
+        language (str): Output language
+        tokens_used (int): OpenAI tokens
+        processing_time (float): Time in seconds
+    
+    Returns:
+        bool: True if saved successfully
     """
     conn = get_db_connection()
     if conn:
@@ -328,7 +263,14 @@ def save_ocr_result(user_id, filename, extracted_text, summary, summary_length, 
 
 def get_user_history(user_id, limit=50):
     """
-    Get OCR history for a user
+    Get user's OCR processing history
+    
+    Args:
+        user_id (int): User's ID
+        limit (int): Maximum number of records (default 50)
+    
+    Returns:
+        list: List of history records (newest first)
     """
     conn = get_db_connection()
     if conn:
@@ -341,7 +283,7 @@ def get_user_history(user_id, limit=50):
                 LIMIT %s""",
                 (user_id, limit)
             )
-            history = cursor.fetchall()
+            history = cursor.fetchall()  # Get all results
             cursor.close()
             conn.close()
             return history
@@ -352,12 +294,21 @@ def get_user_history(user_id, limit=50):
 
 def search_history(user_id, search_term):
     """
-    Search in user's OCR history
+    Search in user's history
+    Searches in: extracted text, summary, and filename
+    
+    Args:
+        user_id (int): User's ID
+        search_term (str): What to search for
+    
+    Returns:
+        list: Matching history records
     """
     conn = get_db_connection()
     if conn:
         try:
             cursor = conn.cursor()
+            # ILIKE = case-insensitive search
             cursor.execute(
                 """SELECT * FROM ocr_history 
                 WHERE user_id = %s 
@@ -377,6 +328,18 @@ def search_history(user_id, search_term):
 def get_user_statistics(user_id):
     """
     Get statistics for a user
+    
+    Calculates:
+    - Total OCR processed
+    - Total tokens used
+    - Average processing time
+    - Number of active days
+    
+    Args:
+        user_id (int): User's ID
+    
+    Returns:
+        dict: Statistics data
     """
     conn = get_db_connection()
     if conn:
@@ -401,9 +364,48 @@ def get_user_statistics(user_id):
             return None
     return None
 
+def delete_history_item(history_id, user_id):
+    """
+    Delete a history record
+    
+    Security: Only allows user to delete their own records
+    
+    Args:
+        history_id (int): ID of record to delete
+        user_id (int): User's ID (for security)
+    
+    Returns:
+        bool: True if deleted successfully
+    """
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+            # Only delete if it belongs to this user
+            cursor.execute(
+                "DELETE FROM ocr_history WHERE id = %s AND user_id = %s",
+                (history_id, user_id)
+            )
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"Error deleting history: {e}")
+            return False
+    return False
+
 def update_user_role(user_id, role):
     """
-    Update user role (user/admin)
+    Update user's role (user or admin)
+    Admin feature only
+    
+    Args:
+        user_id (int): User's ID
+        role (str): 'user' or 'admin'
+    
+    Returns:
+        bool: True if updated
     """
     conn = get_db_connection()
     if conn:
@@ -424,7 +426,11 @@ def update_user_role(user_id, role):
 
 def get_all_users():
     """
-    Get all users (admin only)
+    Get list of all users
+    Admin feature only
+    
+    Returns:
+        list: All users (without passwords)
     """
     conn = get_db_connection()
     if conn:
@@ -442,7 +448,15 @@ def get_all_users():
 
 def get_admin_statistics():
     """
-    Get overall statistics (admin only)
+    Get overall platform statistics
+    Admin feature only
+    
+    Returns:
+        dict: Platform-wide stats
+            - total_users: Total registered users
+            - total_ocr: Total OCR processed
+            - total_tokens: Total tokens used
+            - today_ocr: OCR processed today
     """
     conn = get_db_connection()
     if conn:
@@ -463,24 +477,3 @@ def get_admin_statistics():
             print(f"Error fetching admin statistics: {e}")
             return None
     return None
-
-def delete_history_item(history_id, user_id):
-    """
-    Delete a history item
-    """
-    conn = get_db_connection()
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "DELETE FROM ocr_history WHERE id = %s AND user_id = %s",
-                (history_id, user_id)
-            )
-            conn.commit()
-            cursor.close()
-            conn.close()
-            return True
-        except Exception as e:
-            print(f"Error deleting history: {e}")
-            return False
-    return False
