@@ -173,7 +173,7 @@ def analyze_receipt_categories(receipt_text):
     How it works:
     1. Takes extracted receipt text
     2. Asks AI to identify item categories
-    3. Returns categorized items
+    3. Returns categorized items with clear category headers
     
     Categories detected:
     - Vegetables
@@ -196,44 +196,63 @@ def analyze_receipt_categories(receipt_text):
     Returns:
         dict: Contains:
             - success: True/False
-            - categories: Dictionary of categories with items
-            - total_categories: Number of categories found
+            - categorization: Organized items by category
+            - tokens: Number of tokens used
             - message: Error message if failed
     """
     try:
-        # Ask AI to categorize receipt items
+        # Ask AI to categorize receipt items with clear formatting
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {
                     "role": "system",
-                    "content": """You are a receipt analyzer expert. Analyze the receipt and categorize all items.
+                    "content": """You are a receipt analyzer expert. Analyze the receipt and categorize ALL items clearly.
                     
-                    Categories to use:
-                    - Vegetables
-                    - Fruits
-                    - Dairy Products
-                    - Meat & Poultry
-                    - Bakery
-                    - Beverages
-                    - Snacks
-                    - Cosmetics
-                    - Personal Care
-                    - Household Items
-                    - Electronics
-                    - Clothing
-                    - Others
+                    IMPORTANT: Organize items under clear category headers.
                     
-                    For each category found, list the items with their prices.
-                    Format your response clearly with category names as headers."""
+                    Use these categories:
+                    🥬 Vegetables
+                    🍎 Fruits
+                    🥛 Dairy Products
+                    🍗 Meat & Poultry
+                    🍞 Bakery
+                    🥤 Beverages
+                    🍿 Snacks
+                    💄 Cosmetics
+                    🧴 Personal Care
+                    🧹 Household Items
+                    📱 Electronics
+                    👕 Clothing
+                    📦 Others
+                    
+                    FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+                    
+                    ## 🥬 Vegetables
+                    - Tomatoes - $2.50
+                    - Onions - $1.20
+                    
+                    ## 🍎 Fruits
+                    - Apples - $3.00
+                    - Bananas - $1.50
+                    
+                    ## 💄 Cosmetics
+                    - Lipstick - $15.00
+                    
+                    RULES:
+                    1. Use ## for category headers with emoji
+                    2. List each item with - and price
+                    3. Only show categories that have items
+                    4. Group similar items together
+                    5. Include ALL items from receipt"""
                 },
                 {
                     "role": "user",
-                    "content": f"Analyze this receipt and categorize all items:\n\n{receipt_text}"
+                    "content": f"Analyze this receipt and categorize ALL items with clear category headers:\n\n{receipt_text}"
                 }
             ],
             temperature=0.3,  # Low temperature for accurate categorization
-            max_tokens=1000  # Enough for detailed categorization
+            max_tokens=1200  # Enough for detailed categorization
         )
         
         # Extract categorization
