@@ -712,9 +712,187 @@ def show_batch_process():
                 mime="text/plain"
             )
 
-if __name__ == "__main__":
-    main()
-
+def show_advanced_receipt_analysis():
+    """
+    Advanced Receipt Analysis with Financial Advice
+    Complete workflow: OCR → Parsing → Analysis → LLM Advice
+    """
+    st.header("💰 Advanced Receipt Analysis")
+    st.info("📊 Complete financial analysis with AI-powered budgeting advice")
+    
+    # File upload
+    tab1, tab2 = st.tabs(["📤 Upload Receipt", "📸 Take Photo"])
+    
+    uploaded_file = None
+    
+    with tab1:
+        uploaded_file = st.file_uploader("Upload receipt image", type=['jpg', 'jpeg', 'png'], key="adv_receipt")
+    
+    with tab2:
+        camera_photo = st.camera_input("Take photo of receipt", key="adv_cam")
+        if camera_photo:
+            uploaded_file = camera_photo
+    
+    if uploaded_file:
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.subheader("📷 Receipt Image")
+            uploaded_file.seek(0)
+            st.image(uploaded_file, use_container_width=True)
+        
+        with col2:
+            if st.button("🚀 Analyze Receipt", type="primary", use_container_width=True):
+                start_time = time.time()
+                
+                # Step 1: OCR - Extract text
+                with st.spinner("📝 Step 1/5: Extracting text from receipt..."):
+                    uploaded_file.seek(0)
+                    extracted_text = extract_text_from_image(uploaded_file, "Auto Detect")
+                    
+                    if not extracted_text or extracted_text.startswith("ERROR:"):
+                        st.error("Failed to extract text from receipt")
+                        return
+                    
+                    st.success("✅ Text extracted!")
+                
+                # Step 2: Parse to structured data
+                with st.spinner("🔄 Step 2/5: Parsing receipt data..."):
+                    parse_result = parse_receipt_to_structured_data(extracted_text)
+                    
+                    if not parse_result['success']:
+                        st.error(f"Failed to parse receipt: {parse_result.get('message')}")
+                        return
+                    
+                    structured_data = parse_result['data']
+                    st.success("✅ Data parsed!")
+                
+                # Step 3: Analyze spending
+                with st.spinner("📊 Step 3/5: Analyzing spending patterns..."):
+                    spending_analysis = analyze_spending(structured_data)
+                    
+                    if not spending_analysis['success']:
+                        st.error(f"Failed to analyze spending: {spending_analysis.get('message')}")
+                        return
+                    
+                    st.success("✅ Spending analyzed!")
+                
+                # Step 4: Detect anomalies
+                with st.spinner("⚠️ Step 4/5: Detecting spending anomalies..."):
+                    anomalies = detect_anomalies(spending_analysis)
+                    st.success("✅ Anomalies detected!")
+                
+                # Step 5: Generate financial advice
+                with st.spinner("🤖 Step 5/5: Generating AI financial advice..."):
+                    advice_result = generate_financial_advice(structured_data, spending_analysis)
+                    
+                    if not advice_result['success']:
+                        st.error(f"Failed to generate advice: {advice_result.get('message')}")
+                        return
+                    
+                    st.success("✅ Analysis complete!")
+                
+                processing_time = time.time() - start_time
+                
+                # Display Results
+                st.divider()
+                st.subheader("📊 Analysis Results")
+                
+                # Receipt Info
+                col_a, col_b, col_c = st.columns(3)
+                with col_a:
+                    st.metric("Store", structured_data.get('store_name', 'N/A'))
+                with col_b:
+                    st.metric("Date", structured_data.get('date', 'N/A'))
+                with col_c:
+                    st.metric("Total Amount", f"${structured_data.get('total', 0):.2f}")
+                
+                # Items Table
+                with st.expander("🛒 Items List", expanded=False):
+                    items = structured_data.get('items', [])
+                    if items:
+                        import pandas as pd
+                        df = pd.DataFrame(items)
+                        st.dataframe(df, use_container_width=True)
+                    else:
+                        st.info("No items found")
+                
+                # Category Spending Analysis
+                st.subheader("📈 Category Spending Breakdown")
+                
+                category_analysis = spending_analysis.get('category_analysis', [])
+                
+                if category_analysis:
+                    # Create data for chart
+                    import pandas as pd
+                    chart_data = pd.DataFrame(category_analysis)
+                    
+                    # Bar chart
+                    st.bar_chart(chart_data.set_index('category')['amount'])
+                    
+                    # Detailed table
+                    col_d, col_e = st.columns(2)
+                    
+                    with col_d:
+                        st.write("**Category Totals:**")
+                        for cat in category_analysis:
+                            st.write(f"• {cat['category']}: ${cat['amount']:.2f}")
+                    
+                    with col_e:
+                        st.write("**Percentage of Total:**")
+                        for cat in category_analysis:
+                            st.write(f"• {cat['category']}: {cat['percentage']:.1f}%")
+                
+                # Anomalies/Warnings
+                if anomalies:
+                    st.subheader("⚠️ Spending Alerts")
+                    for anomaly in anomalies:
+                        st.warning(anomaly['message'])
+                
+                # AI Financial Advice
+                st.subheader("🤖 AI Financial Advisor")
+                with st.expander("💡 Personalized Financial Advice", expanded=True):
+                    st.markdown(advice_result['advice'])
+                
+                # Summary Metrics
+                st.divider()
+                col_f, col_g, col_h, col_i = st.columns(4)
+                
+                with col_f:
+                    st.metric("Total Items", spending_analysis.get('total_items', 0))
+                with col_g:
+                    st.metric("Categories", len(category_analysis))
+                with col_h:
+                    st.metric("Processing Time", f"{processing_time:.2f}s")
+                with col_i:
+                    total_tokens = parse_result.get('tokens', 0) + advice_result.get('tokens', 0)
+                    st.metric("Tokens Used", total_tokens)
+                
+                # Download Options
+                st.divider()
+                col_j, col_k = st.columns(2)
+                
+                with col_j:
+                    # Download structured data as JSON
+                    import json
+                    json_data = json.dumps(structured_data, indent=2)
+                    st.download_button(
+                        "📥 Download Receipt Data (JSON)",
+                        json_data,
+                        file_name="receipt_data.json",
+                        mime="application/json",
+                        use_container_width=True
+                    )
+                
+                with col_k:
+                    # Download financial advice
+                    st.download_button(
+                        "📥 Download Financial Advice",
+                        advice_result['advice'],
+                        file_name="financial_advice.txt",
+                        mime="text/plain",
+                        use_container_width=True
+                    )
 
 def show_advanced_receipt_analysis():
     """
@@ -897,3 +1075,6 @@ def show_advanced_receipt_analysis():
                         mime="text/plain",
                         use_container_width=True
                     )
+
+if __name__ == "__main__":
+    main()
