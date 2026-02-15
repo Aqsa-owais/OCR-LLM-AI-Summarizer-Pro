@@ -6,7 +6,7 @@ import streamlit as st
 from auth import signup_user, login_user, logout_user
 from ocr import extract_text_from_image
 from llm_agent import summarize_text
-from script_analyzer import analyze_script, detect_language
+from script_analyzer import analyze_script, detect_language, analyze_receipt_categories
 from pdf_ocr import extract_text_from_pdf
 from database import (create_users_table, create_ocr_history_table, save_ocr_result, 
                      get_user_history, search_history, get_user_statistics, delete_history_item)
@@ -188,7 +188,7 @@ def show_login_page():
 
 def show_script_analyzer():
     st.header("🧾 Receipt Analyzer")
-    st.info("📸 Upload receipt/invoice image to extract and analyze all details")
+    st.info("📸 Upload receipt/invoice image to extract and analyze all details with category detection")
     
     # Analysis type selector
     col1, col2 = st.columns(2)
@@ -196,7 +196,7 @@ def show_script_analyzer():
     with col1:
         analysis_type = st.selectbox(
             "🔍 Analysis Type",
-            ["Full Analysis", "Bug Detection", "Code Review", "Explanation"]
+            ["Receipt Analysis with Categories", "Full Analysis", "Bug Detection", "Code Review", "Explanation"]
         )
     
     with col2:
@@ -222,82 +222,129 @@ def show_script_analyzer():
         col1, col2 = st.columns([1, 2])
         
         with col1:
-            st.subheader("📷 Code Image")
+            st.subheader("📷 Receipt Image")
             uploaded_file.seek(0)
             st.image(uploaded_file, use_container_width=True)
         
         with col2:
-            if st.button("🚀 Analyze Code", type="primary", use_container_width=True):
+            if st.button("🚀 Analyze Receipt", type="primary", use_container_width=True):
                 start_time = time.time()
                 
-                with st.spinner("Extracting code from image..."):
+                with st.spinner("Extracting text from receipt..."):
                     uploaded_file.seek(0)
-                    extracted_code = extract_text_from_image(uploaded_file, "Auto Detect")
+                    extracted_text = extract_text_from_image(uploaded_file, "Auto Detect")
                     
-                    if extracted_code and not extracted_code.startswith("ERROR:"):
-                        st.success("✅ Code extracted!")
+                    if extracted_text and not extracted_text.startswith("ERROR:"):
+                        st.success("✅ Text extracted!")
                         
-                        # Display extracted code
-                        with st.expander("📄 Extracted Code", expanded=False):
-                            st.code(extracted_code, language="python")
+                        # Display extracted text
+                        with st.expander("📄 Extracted Text", expanded=False):
+                            st.text_area("", extracted_text, height=200, label_visibility="collapsed")
                         
-                        # Detect language
-                        with st.spinner("Detecting programming language..."):
-                            detected_lang = detect_language(extracted_code)
-                            st.info(f"🔍 Detected Language: **{detected_lang}**")
+                        # Check if Receipt Analysis with Categories is selected
+                        if analysis_type == "Receipt Analysis with Categories":
+                            # Analyze receipt categories
+                            with st.spinner("Analyzing receipt and categorizing items..."):
+                                category_result = analyze_receipt_categories(extracted_text)
+                                
+                                if category_result['success']:
+                                    processing_time = time.time() - start_time
+                                    
+                                    st.success(f"✅ Analysis complete in {processing_time:.2f}s!")
+                                    
+                                    # Display categorization
+                                    with st.expander("🏷️ Item Categories", expanded=True):
+                                        st.markdown(category_result['categorization'])
+                                    
+                                    # Metrics
+                                    col_a, col_b = st.columns(2)
+                                    with col_a:
+                                        st.metric("Tokens Used", category_result['tokens'])
+                                    with col_b:
+                                        st.metric("Processing Time", f"{processing_time:.2f}s")
+                                    
+                                    # Download buttons
+                                    col_d, col_e = st.columns(2)
+                                    
+                                    with col_d:
+                                        st.download_button(
+                                            "📥 Download Text",
+                                            extracted_text,
+                                            file_name="receipt_text.txt",
+                                            mime="text/plain",
+                                            use_container_width=True
+                                        )
+                                    
+                                    with col_e:
+                                        st.download_button(
+                                            "📥 Download Categories",
+                                            category_result['categorization'],
+                                            file_name="receipt_categories.txt",
+                                            mime="text/plain",
+                                            use_container_width=True
+                                        )
+                                else:
+                                    st.error(f"Error: {category_result.get('message')}")
                         
-                        # Analyze code
-                        with st.spinner(f"Analyzing code ({analysis_type})..."):
-                            # If output language is not English, add translation instruction
-                            if output_language != "English":
-                                analysis_instruction = f"{analysis_type} (Provide analysis in {output_language})"
-                            else:
-                                analysis_instruction = analysis_type
+                        else:
+                            # Regular code analysis
+                            # Detect language
+                            with st.spinner("Detecting programming language..."):
+                                detected_lang = detect_language(extracted_text)
+                                st.info(f"🔍 Detected Language: **{detected_lang}**")
                             
-                            analysis_result = analyze_script(extracted_code, analysis_instruction)
-                            
-                            if analysis_result['success']:
-                                processing_time = time.time() - start_time
+                            # Analyze code
+                            with st.spinner(f"Analyzing code ({analysis_type})..."):
+                                # If output language is not English, add translation instruction
+                                if output_language != "English":
+                                    analysis_instruction = f"{analysis_type} (Provide analysis in {output_language})"
+                                else:
+                                    analysis_instruction = analysis_type
                                 
-                                st.success(f"✅ Analysis complete in {processing_time:.2f}s!")
+                                analysis_result = analyze_script(extracted_text, analysis_instruction)
                                 
-                                # Display analysis
-                                with st.expander("🤖 AI Analysis", expanded=True):
-                                    st.markdown(analysis_result['analysis'])
-                                
-                                # Metrics
-                                col_a, col_b, col_c = st.columns(3)
-                                with col_a:
-                                    st.metric("Language", detected_lang)
-                                with col_b:
-                                    st.metric("Tokens", analysis_result['tokens'])
-                                with col_c:
-                                    st.metric("Time", f"{processing_time:.2f}s")
-                                
-                                # Download buttons
-                                col_d, col_e = st.columns(2)
-                                
-                                with col_d:
-                                    st.download_button(
-                                        "📥 Download Code",
-                                        extracted_code,
-                                        file_name="extracted_code.txt",
-                                        mime="text/plain",
-                                        use_container_width=True
-                                    )
-                                
-                                with col_e:
-                                    st.download_button(
-                                        "📥 Download Analysis",
-                                        analysis_result['analysis'],
-                                        file_name="code_analysis.txt",
-                                        mime="text/plain",
-                                        use_container_width=True
-                                    )
-                            else:
-                                st.error(f"Error: {analysis_result.get('message')}")
+                                if analysis_result['success']:
+                                    processing_time = time.time() - start_time
+                                    
+                                    st.success(f"✅ Analysis complete in {processing_time:.2f}s!")
+                                    
+                                    # Display analysis
+                                    with st.expander("🤖 AI Analysis", expanded=True):
+                                        st.markdown(analysis_result['analysis'])
+                                    
+                                    # Metrics
+                                    col_a, col_b, col_c = st.columns(3)
+                                    with col_a:
+                                        st.metric("Language", detected_lang)
+                                    with col_b:
+                                        st.metric("Tokens", analysis_result['tokens'])
+                                    with col_c:
+                                        st.metric("Time", f"{processing_time:.2f}s")
+                                    
+                                    # Download buttons
+                                    col_d, col_e = st.columns(2)
+                                    
+                                    with col_d:
+                                        st.download_button(
+                                            "📥 Download Code",
+                                            extracted_text,
+                                            file_name="extracted_code.txt",
+                                            mime="text/plain",
+                                            use_container_width=True
+                                        )
+                                    
+                                    with col_e:
+                                        st.download_button(
+                                            "📥 Download Analysis",
+                                            analysis_result['analysis'],
+                                            file_name="code_analysis.txt",
+                                            mime="text/plain",
+                                            use_container_width=True
+                                        )
+                                else:
+                                    st.error(f"Error: {analysis_result.get('message')}")
                     else:
-                        st.error("No code found in image. Please try another image.")
+                        st.error("No text found in image. Please try another image.")
 
 def show_signup_page():
     st.header("📝 Create Account")

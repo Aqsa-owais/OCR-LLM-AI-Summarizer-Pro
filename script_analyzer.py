@@ -165,3 +165,92 @@ def detect_language(code_text):
     # If detection fails, return Unknown
     except:
         return "Unknown"
+
+def analyze_receipt_categories(receipt_text):
+    """
+    Analyze receipt and categorize items
+    
+    How it works:
+    1. Takes extracted receipt text
+    2. Asks AI to identify item categories
+    3. Returns categorized items
+    
+    Categories detected:
+    - Vegetables
+    - Fruits
+    - Dairy Products
+    - Meat & Poultry
+    - Bakery
+    - Beverages
+    - Snacks
+    - Cosmetics
+    - Personal Care
+    - Household Items
+    - Electronics
+    - Clothing
+    - Others
+    
+    Args:
+        receipt_text (str): Extracted text from receipt
+    
+    Returns:
+        dict: Contains:
+            - success: True/False
+            - categories: Dictionary of categories with items
+            - total_categories: Number of categories found
+            - message: Error message if failed
+    """
+    try:
+        # Ask AI to categorize receipt items
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """You are a receipt analyzer expert. Analyze the receipt and categorize all items.
+                    
+                    Categories to use:
+                    - Vegetables
+                    - Fruits
+                    - Dairy Products
+                    - Meat & Poultry
+                    - Bakery
+                    - Beverages
+                    - Snacks
+                    - Cosmetics
+                    - Personal Care
+                    - Household Items
+                    - Electronics
+                    - Clothing
+                    - Others
+                    
+                    For each category found, list the items with their prices.
+                    Format your response clearly with category names as headers."""
+                },
+                {
+                    "role": "user",
+                    "content": f"Analyze this receipt and categorize all items:\n\n{receipt_text}"
+                }
+            ],
+            temperature=0.3,  # Low temperature for accurate categorization
+            max_tokens=1000  # Enough for detailed categorization
+        )
+        
+        # Extract categorization
+        categorization = response.choices[0].message.content
+        tokens_used = response.usage.total_tokens
+        
+        return {
+            'success': True,
+            'categorization': categorization,
+            'tokens': tokens_used
+        }
+    
+    # Handle any errors
+    except Exception as e:
+        return {
+            'success': False,
+            'message': str(e),
+            'categorization': '',
+            'tokens': 0
+        }
